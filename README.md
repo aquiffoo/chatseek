@@ -6,6 +6,9 @@ goblet + cablyAI + deepseek v3 = 🤯
 
 i created the goblet framework to streamline the development of web applications in go.
 
+# preview
+![preview](image.png)
+
 ## features
 
 - simple setup with goblet
