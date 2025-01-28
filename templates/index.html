@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ .title }}</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">ChatSeek</h1>
+        <div class="chat-history" id="chat-history">
+        </div>
+        <form id="chat-form" class="chat-form">
+            <div class="form-group">
+                <label for="model">Select Model:</label>
+                <select name="model" id="model" class="select-model">
+                    <option value="deepseek-v3">DeepSeek V3</option>
+                    <option value="gpt-4o-mini">GPT 4o Mini</option>
+                    <option value="o1-mini">o1-mini</option>
+                    <option value="llama-3.1-sonar-small-128k-online">Sonar [WEB]</option>
+                    <option value="llama-3.1-8b-instruct">Llama 3.1 [8B]</option>
+                </select>
+            </div>
+            <div class="form-group" style="flex: 2;">
+                <label for="content">Enter Message:</label>
+                <textarea id="content" name="content" class="textarea-content" required placeholder="Type your message here..."></textarea>
+            </div>
+            <button type="submit" class="submit-button" title="Send (Ctrl+Enter)">
+                <i class="fas fa-keyboard"></i>
+                <span>Send</span>
+            </button>
+        </form>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" integrity="sha512-fD9DI5bZwQxOi7MhYWnnNPlvXdp/2Pj3XSTRrFs5FQa4mizyGLnJcN6tuvUS6LbmgN1ut+XGSABKvjN0H6Aoow==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js" integrity="sha512-zAs8dHhwlTbfcVGRX1x0EZAH/L99NjAFzX6muwOcOJc7dbGFNaW4O7b9QOyCMRYBNjO+E0Kx6yLDsiPQhhWm7g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.4.0/purify.min.js" integrity="sha512-/hVAZO5POxCKdZMSLefw30xEVwjm94PAV9ynjskGbIpBvHO9EBplEcdUlBdCKutpZsF+La8Ag4gNrG0gAOn3Ig==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script>
+        const chatForm = document.getElementById('chat-form');
+        const chatHistory = document.getElementById('chat-history');
+        const textarea = document.getElementById('content');
+
+        chatForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const model = document.getElementById('model').value;
+            const content = textarea.value.trim();
+            if (content === "") {
+                return;
+            }
+            appendMessage('user', content);
+            textarea.value = '';
+            try {
+                const response = await fetch('/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [{ role: 'user', content: content }],
+                        stream: false
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    appendMessage('error', 'Error: ' + errorText);
+                    return;
+                }
+
+                const data = await response.json();
+                const assistantMessage = data.choices[0].message.content;
+                appendMessage('assistant', assistantMessage);
+            } catch (error) {
+                appendMessage('error', 'Error: ' + error.message);
+            }
+        });
+
+        textarea.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+
+        function appendMessage(role, message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', role);
+
+            const icon = document.createElement('i');
+            if (role === 'user') {
+                icon.classList.add('fas', 'fa-user');
+            } else if (role === 'assistant') {
+                icon.classList.add('fas', 'fa-robot');
+            } else if (role === 'error') {
+                icon.classList.add('fas', 'fa-exclamation-triangle');
+            } else {
+                icon.classList.add('fas', 'fa-keyboard');
+            }
+
+            const messageContent = document.createElement('div');
+            messageContent.classList.add('markdown-content');
+            const rawHtml = marked.parse(message);
+            messageContent.innerHTML = DOMPurify.sanitize(rawHtml);
+
+            messageElement.appendChild(icon);
+            messageElement.appendChild(messageContent);
+
+            chatHistory.appendChild(messageElement);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+    </script>
+</body>
+</html>
